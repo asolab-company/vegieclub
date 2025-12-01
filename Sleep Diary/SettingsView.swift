@@ -4,6 +4,11 @@ struct SettingsView: View {
     var onBack: () -> Void
     @Environment(\.openURL) private var openURL
     @State private var showShare = false
+    
+    
+    @AppStorage("notificationsEnabled") private var notificationsEnabled = false
+    @AppStorage("sleepReminderHour") private var sleepReminderHour: Int = 22
+    @AppStorage("sleepReminderMinute") private var sleepReminderMinute: Int = 0
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -13,12 +18,12 @@ struct SettingsView: View {
                     Button(action: { onBack() }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(Color.init(hex: "0066DD"))
+                            .foregroundColor(Color(hex: "0066DD"))
                     }
                     Spacer()
                     Text("Setting")
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(Color.init(hex: "02105B"))
+                        .foregroundColor(Color(hex: "02105B"))
                     Spacer()
                     Image(systemName: "chevron.left")
                         .opacity(0)
@@ -37,7 +42,8 @@ struct SettingsView: View {
                     icon: "app_ic_share",
                     title: "Share app",
                     action: { showShare = true }
-                ).padding(.top, 20)
+                )
+                .padding(.top, 20)
 
                 SettingsRow(
                     icon: "app_ic_terms",
@@ -51,34 +57,91 @@ struct SettingsView: View {
                     action: { openURL(Data.policy) }
                 )
 
-                Spacer()
+                SettingsRow(
+                    icon: "app_ic_not",
+                    title: "Notifications",
+                    showsNotificationState: true,
+                    isNotificationOn: notificationsEnabled
+                ) {
+                    if !notificationsEnabled {
+                        
+                        NotificationManager.shared.requestAuthorization { granted in
+                            if granted {
+                                notificationsEnabled = true
+                                
+                                NotificationManager.shared.scheduleDailyNotification(
+                                    hour: sleepReminderHour,
+                                    minute: sleepReminderMinute,
+                                    title: "Sleep Reminder 🌙",
+                                    body: "It’s time to get ready for sleep and log your day"
+                                )
+                            } else {
+                                notificationsEnabled = false
+                                
+                                if let url = URL(string: UIApplication.openSettingsURLString) {
+                                    openURL(url)
+                                }
+                            }
+                        }
+                    } else {
+                        
+                        notificationsEnabled = false
+                        NotificationManager.shared.cancelAll()
+                    }
+                }
 
+                Spacer()
             }
 
+        }
+        .onAppear {
+            
+            
+            
+            
+            NotificationManager.shared.getCurrentStatus { granted in
+                
+                
+                if !granted && notificationsEnabled {
+                    notificationsEnabled = false
+                    NotificationManager.shared.cancelAll()
+                }
+            }
         }
         .background(
             ZStack {
                 Color(hex: "F7F8F9")
                     .ignoresSafeArea()
-
             }
-
         )
-
         .sheet(isPresented: $showShare) {
             ShareSheet(items: Data.shareItems)
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
-
     }
-
 }
 
 private struct SettingsRow: View {
     let icon: String
     let title: String
+    let showsNotificationState: Bool
+    let isNotificationOn: Bool
     let action: () -> Void
+
+    init(
+        icon: String,
+        title: String,
+        showsNotificationState: Bool = false,
+        isNotificationOn: Bool = false,
+        action: @escaping () -> Void
+    ) {
+        self.icon = icon
+        self.title = title
+        self.showsNotificationState = showsNotificationState
+        self.isNotificationOn = isNotificationOn
+        self.action = action
+    }
 
     var body: some View {
         Button(action: action) {
@@ -94,9 +157,16 @@ private struct SettingsRow: View {
 
                 Spacer()
 
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color(hex: "0066DD"))
+                
+                if showsNotificationState {
+                    Image(systemName: isNotificationOn ? "bell.fill" : "bell")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Color(hex: "0066DD"))
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(Color(hex: "0066DD"))
+                }
             }
             .padding(.horizontal, 20)
             .frame(height: 60)
@@ -126,5 +196,5 @@ struct ShareSheet: UIViewControllerRepresentable {
 }
 
 #Preview {
-    SettingsView {}
+    SettingsView { }
 }
