@@ -4,6 +4,7 @@ struct MenuView: View {
     var onSettings: () -> Void = {}
     var onAddNotes: () -> Void = {}
     var onIdeaDetails: (UUID) -> Void = { _ in }
+    var onBestTime: () -> Void = {}
 
     @State private var selectedDate: Date = Calendar.current.startOfDay(
         for: Date()
@@ -43,9 +44,14 @@ struct MenuView: View {
                     onAddIdea: onAddNotes
                 )
 
-                NotesListView(selectedDate: selectedDate) { idea in
-                    onIdeaDetails(idea.id)
-                }
+                NotesListView(
+                    selectedDate: selectedDate,
+                    onSelect: { idea in
+                        onIdeaDetails(idea.id)
+                    },
+                    onAddIdea: onAddNotes,
+                    onBestTime: onBestTime
+                )
                 .padding(.top, Device.isSmall ? 50 : 40)
             }
 
@@ -66,8 +72,16 @@ struct MenuView: View {
 struct NotesListView: View {
     var selectedDate: Date
     var onSelect: (IdeaRecord) -> Void = { _ in }
-
+    var onAddIdea: () -> Void = {}
+    var onBestTime: () -> Void = {}
     @State private var ideas: [IdeaRecord] = []
+    @AppStorage("notificationsEnabled") private var notificationsEnabled = false
+    @AppStorage("sleepReminderHour") private var sleepReminderHour: Int = 22
+    @AppStorage("sleepReminderMinute") private var sleepReminderMinute: Int = 0
+
+    private var reminderTimeText: String {
+        String(format: "%02d:%02d", sleepReminderHour, sleepReminderMinute)
+    }
 
     private var filteredIdeas: [IdeaRecord] {
         let calendar = Calendar.current
@@ -77,26 +91,77 @@ struct NotesListView: View {
     }
 
     var body: some View {
-        Group {
-            if filteredIdeas.isEmpty {
-                EmptyNotesView()
-            } else {
-                ScrollView {
-                    VStack(spacing: 16) {
-                        ForEach(
-                            filteredIdeas.sorted(by: {
-                                $0.createdAt > $1.createdAt
-                            })
-                        ) { idea in
-                            NoteRow(idea: idea) {
-                                onSelect(idea)
+        ScrollView {
+            VStack(spacing: 16) {
+                if notificationsEnabled {
+                    
+                    Button(action: { onBestTime() }) {
+                        HStack(alignment: .center) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Best Sleep Reminder")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(Color(hex: "02105B"))
+
+                                Text(reminderTimeText)
+                                    .font(.system(size: 14, weight: .regular))
+                                    .foregroundColor(Color(hex: "9C9ED4"))
                             }
+
+                            Spacer()
+
+                            Image(systemName: "bell.fill")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(Color(hex: "0066DD"))
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
+                        .frame(maxWidth: .infinity)
+                        .background(Color(hex: "E6EDFF"))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 40, style: .continuous)
+                                .stroke(Color(hex: "A5B4FF"), lineWidth: 2)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    
+                    Button(action: { onBestTime() }) {
+                        ZStack {
+                            Text("Best Sleep Reminder")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(.white)
+
+                            HStack {
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                            .padding(.horizontal, 20)
+                        }
+                        .padding(.vertical, 14)
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(BtnStyle(height: Device.isSmall ? 40 : 60))
+                }
+
+                if filteredIdeas.isEmpty {
+                    EmptyNotesView()
+                } else {
+                    ForEach(
+                        filteredIdeas.sorted(by: {
+                            $0.createdAt > $1.createdAt
+                        })
+                    ) { idea in
+                        NoteRow(idea: idea) {
+                            onSelect(idea)
                         }
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 8)
                 }
             }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 8)
         }
         .onAppear(perform: fetch)
         .onReceive(
@@ -154,8 +219,6 @@ private struct NoteRow: View {
 private struct EmptyNotesView: View {
     var body: some View {
         VStack(spacing: 24) {
-            Spacer()
-
             Image("app_bg_empty")
                 .resizable()
                 .scaledToFit()
@@ -167,10 +230,9 @@ private struct EmptyNotesView: View {
                 .foregroundColor(Color(hex: "9C9ED4"))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
-
-            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
     }
 }
 
@@ -297,30 +359,7 @@ struct SleepCalendarView: View {
         }
     }
 
-    private var ctaButton: some View {
-        Button(action: {
 
-        }) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 32, style: .continuous)
-                    .fill(Color(hex: "FF6A21"))
-
-                HStack {
-                    Text("How was your sleep?")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.white)
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.white)
-                }
-                .padding(.horizontal, 24)
-            }
-            .frame(height: 64)
-        }
-    }
 
     private func monthTitle(for date: Date) -> String {
         let formatter = DateFormatter()
