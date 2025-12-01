@@ -338,7 +338,7 @@ struct AddNote: View {
     }
 }
 
-private struct RoundedField: View {
+struct RoundedField: View {
     let placeholder: String
     @Binding var text: String
     var multiline: Bool = false
