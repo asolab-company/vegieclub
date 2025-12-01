@@ -9,6 +9,7 @@ enum AppRoute: Equatable {
     case settings
     case addNotes
     case noteDetails(id: UUID)
+    case addTime
 }
 
 struct RootView: View {
@@ -49,7 +50,8 @@ struct RootView: View {
                 onAddNotes: { route = .addNotes },
                 onIdeaDetails: { ideaID in
                     route = .noteDetails(id: ideaID)
-                }
+                },
+                onBestTime: { route = .addTime }
             )
 
         case .settings:
@@ -58,6 +60,12 @@ struct RootView: View {
         case .addNotes:
             AddNote(
                 onCancel: { route = .menu }
+
+            )
+            
+        case .addTime:
+        BestTimeView(
+                onBack: { route = .menu }
 
             )
 
